@@ -11,7 +11,7 @@ import { IDisposable, toDisposable, DisposableStore, MutableDisposable } from 'v
 import { LRUCache } from 'vs/base/common/map';
 import { localize } from 'vs/nls';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
-import { ContextKeyEqualsExpr, IContextKey, IContextKeyService, RawContextKey } from 'vs/platform/contextkey/common/contextkey';
+import { ContextKeyExpr, IContextKey, IContextKeyService, RawContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
 import { IInstantiationService, ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
@@ -285,19 +285,26 @@ export class OutlinePane extends ViewPane {
 		// feature: reveal outline selection in editor
 		// on change -> reveal/select defining range
 		this._editorDisposables.add(tree.onDidOpen(e => newOutline.reveal(e.element, e.editorOptions, e.sideBySide)));
-
 		// feature: reveal editor selection in outline
 		const revealActiveElement = () => {
 			if (!this._outlineViewState.followCursor || !newOutline.activeElement) {
 				return;
 			}
-			const item = newOutline.activeElement;
-			const top = tree.getRelativeTop(item);
-			if (top === null) {
-				tree.reveal(item, 0.5);
+			let item = newOutline.activeElement;
+			while (item) {
+				const top = tree.getRelativeTop(item);
+				if (top === null) {
+					// not visible -> reveal
+					tree.reveal(item, 0.5);
+				}
+				if (tree.getRelativeTop(item) !== null) {
+					tree.setFocus([item]);
+					tree.setSelection([item]);
+					break;
+				}
+				// STILL not visible -> try parent
+				item = tree.getParentElement(item);
 			}
-			tree.setFocus([item]);
-			tree.setSelection([item]);
 		};
 		revealActiveElement();
 		this._editorDisposables.add(newOutline.onDidChange(revealActiveElement));
@@ -356,7 +363,7 @@ registerAction2(class Collapse extends ViewAction<OutlinePane> {
 			menu: {
 				id: MenuId.ViewTitle,
 				group: 'navigation',
-				when: ContextKeyEqualsExpr.create('view', OutlinePane.Id)
+				when: ContextKeyExpr.equals('view', OutlinePane.Id)
 			}
 		});
 	}
@@ -377,7 +384,7 @@ registerAction2(class FollowCursor extends ViewAction<OutlinePane> {
 				id: MenuId.ViewTitle,
 				group: 'config',
 				order: 1,
-				when: ContextKeyEqualsExpr.create('view', OutlinePane.Id)
+				when: ContextKeyExpr.equals('view', OutlinePane.Id)
 			}
 		});
 	}
@@ -398,7 +405,7 @@ registerAction2(class FilterOnType extends ViewAction<OutlinePane> {
 				id: MenuId.ViewTitle,
 				group: 'config',
 				order: 2,
-				when: ContextKeyEqualsExpr.create('view', OutlinePane.Id)
+				when: ContextKeyExpr.equals('view', OutlinePane.Id)
 			}
 		});
 	}
@@ -420,7 +427,7 @@ registerAction2(class SortByPosition extends ViewAction<OutlinePane> {
 				id: MenuId.ViewTitle,
 				group: 'sort',
 				order: 1,
-				when: ContextKeyEqualsExpr.create('view', OutlinePane.Id)
+				when: ContextKeyExpr.equals('view', OutlinePane.Id)
 			}
 		});
 	}
@@ -441,7 +448,7 @@ registerAction2(class SortByName extends ViewAction<OutlinePane> {
 				id: MenuId.ViewTitle,
 				group: 'sort',
 				order: 2,
-				when: ContextKeyEqualsExpr.create('view', OutlinePane.Id)
+				when: ContextKeyExpr.equals('view', OutlinePane.Id)
 			}
 		});
 	}
@@ -462,7 +469,7 @@ registerAction2(class SortByKind extends ViewAction<OutlinePane> {
 				id: MenuId.ViewTitle,
 				group: 'sort',
 				order: 3,
-				when: ContextKeyEqualsExpr.create('view', OutlinePane.Id)
+				when: ContextKeyExpr.equals('view', OutlinePane.Id)
 			}
 		});
 	}
